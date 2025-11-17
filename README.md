@@ -77,3 +77,39 @@ Grok-2.5
 
 GLM-4.5
 - Competitive and similar to other models.
+
+**Interesting talks and videos**
+
+Sasha Rush on Cursor Compose: https://www.youtube.com/watch?v=md8D8eNj5JM&pp=ygUPcmF5IHN1bW1pdCAyMDI1
+- Talks about simple RL pipeline consisting of Training, Generation and environment components.
+
+Tinker: https://www.youtube.com/watch?v=Xb34YmbEiOc&pp=ygUPcmF5IHN1bW1pdCAyMDI1
+- Interesting idea to expose a different set of APIs for developers building AI applications
+
+SkyRL: https://www.youtube.com/watch?v=9EW0wHCUeBw&t=4s
+- Could be an interesting library to explore for tinker like ideas.
+
+Ray: https://www.youtube.com/watch?v=B7U05Y4YcJg&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=4
+- Distributed compute engine.
+- Very commonly used in RL libraries for orchestration.
+
+***PyTorch conference 2025***
+
+PyTorch native stack for agents: https://www.youtube.com/watch?v=oiAK4f3_o_0&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=38
+- Introduces Monarch, Torchstore and torchforge.
+- This could be interesting to explore, looks like SkyRl and PrimeIntellect products.
+
+Decent parallelism talk by Lambda labs: https://www.youtube.com/watch?v=O51dr8WeUfY&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=52
+- Code examples could be interesting especially the FSDP one.
+
+Multimodal pytorch training and inference: https://www.youtube.com/watch?v=LmpXU8UwREA&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=73
+- Interesting way to keep model configuration
+- Talks about using a lot of interesting pytorch ideas, rely on Torchtitan like library for easily applying parallelism for models.
+- FSDP2 is the main technique, lets get very good with FSDP 2 and TP first.
+
+***CS231n**
+Distributed training: https://www.youtube.com/watch?v=9MvD-XsowsE&list=PLoROMvodv4rOmsNzYBMe0gJY2XS8AQg16&index=11
+- Great lecture, watch multiple times.
+- Goal is to maximize MFU while using all parallelism techniques
+- FSDP2 is a no brainer when training larger models.
+- Transformer models have L layers, and operate on tensors with shape (B, seq_len, dim), we can split the model across each of these dimensions leading to DP, PP, CP and TP parallelisms.
