@@ -22,6 +22,13 @@ Key Goals
 - Explore knowledge distillation in LLMs
 - How much can we change after SFT during training?
 
+Milestones
+- Download dataset
+- Setup tokenizer
+- Train model.
+- Add parallelism from torchtitan
+
+
 **Resource**
 Training playbook
 https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook#how-to-read-this-blog-post
@@ -113,3 +120,13 @@ Distributed training: https://www.youtube.com/watch?v=9MvD-XsowsE&list=PLoROMvod
 - Goal is to maximize MFU while using all parallelism techniques
 - FSDP2 is a no brainer when training larger models.
 - Transformer models have L layers, and operate on tensors with shape (B, seq_len, dim), we can split the model across each of these dimensions leading to DP, PP, CP and TP parallelisms.
+
+**CME295**
+Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
+- Good discussion on RAG
+- RAG pipeline is a mix of retrieval and ranking similar to search and recommendation systems
+- Several open questions while building RAG pipelines: document source, how to chunk documents, ANN library to use etc.
+- Retrieval tends to use bi-encoder and ranking cross encoder.
+- Another interesting talk on RAG: https://www.youtube.com/watch?v=6PMEqN0-gkM&list=PLqC25OT8ZpD2-RuhyacIsODl5iJVgMjI3&index=10
+- For tool calling systems, a lot of my intutions are covered in this lecture like how to make the model output tool calls.
+- ReAct is an interesting way to formulate agents.
