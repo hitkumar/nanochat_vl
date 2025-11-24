@@ -36,6 +36,11 @@ https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook#how-to-read-t
 - Key question is should you train a model from scratch or fine-tune/prompting an existing model is enough?
 -
 
+Olmo 3 blog: https://allenai.org/blog/olmo3
+- Very interesting to try replicating some of their work
+- Learning Rust might be key given several advantages.
+- Read the technical report.
+
 **Model Architectures for latest models**
 MoE seems a standard choice now, with 1 shared expert. Experts are getting smaller, but increasing in numbers. Can ablate a few of these.
 Full article: https://magazine.sebastianraschka.com/p/the-big-llm-architecture-comparison
@@ -108,6 +113,10 @@ PyTorch native stack for agents: https://www.youtube.com/watch?v=oiAK4f3_o_0&lis
 
 Decent parallelism talk by Lambda labs: https://www.youtube.com/watch?v=O51dr8WeUfY&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=52
 - Code examples could be interesting especially the FSDP one.
+
+Tour of recent LLMs: https://www.youtube.com/watch?v=nDl6Aj9aPAI&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=71
+- Covers LLMs, diffusion, code world model.
+- Similar to his longer talk I saw before.
 
 Multimodal pytorch training and inference: https://www.youtube.com/watch?v=LmpXU8UwREA&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=73
 - Interesting way to keep model configuration
