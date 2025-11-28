@@ -25,7 +25,7 @@ def is_ddp():
     return int(os.environ.get("RANK", -1)) != -1
 
 
-def get_ddp_info():
+def get_dist_info():
     if is_ddp():
         assert all(var in os.environ for var in ["RANK", "LOCAL_RANK", "WORLD_SIZE"])
         ddp_rank = int(os.environ["RANK"])

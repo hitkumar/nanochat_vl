@@ -28,6 +28,8 @@ Milestones
 - Train model.
 - Add parallelism from torchtitan
 
+Olmo-core is not a good option to explore since it assumes that dataloader is not specific to HF. Try PrimeIntellect Prime-RL and verifiers instead, along with torchtitan
+
 
 **Resource**
 Training playbook
