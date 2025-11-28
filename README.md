@@ -139,3 +139,18 @@ Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
 - Another interesting talk on RAG: https://www.youtube.com/watch?v=6PMEqN0-gkM&list=PLqC25OT8ZpD2-RuhyacIsODl5iJVgMjI3&index=10
 - For tool calling systems, a lot of my intutions are covered in this lecture like how to make the model output tool calls.
 - ReAct is an interesting way to formulate agents.
+
+Evaluation: https://www.youtube.com/watch?v=8fNP4N46RRo
+- Human grading is hard
+- LLM Judge is one preferred way to evaluate LLMs these days. We pass LLM the prompt, model response and criteria to use while judging the response. And LLM returns the outcome (binary) and an explanation or reasoning of the outcome. Reasoning is output before outcome so that model "thinks" before giving the outcome.
+- We use structured output in practice so that model response is easy to parse.
+- Evaluation is pointwise or pairwise normally.
+- Suffers from various types of biases - position bias, length/verbosity bias, self enhancement bias. We should ideally use a stronger model as LLM judge compared to the model giving responses. Response should be calibrated with human judgements.
+- For tool calling models, there are a lot of failure models from model not outputting correct func call, to func call failing and LLM not able to get the desired output from result of function call.
+- Several types of benchmarks used in practice
+  - Knowledge benchmarks like MMLU
+  - Reasoning benchmarks like AIME
+  - Coding like SWE-Bench
+  - Safety like HarmBench
+  - Pi Bench for agents
+- Training data should not be contaminated with benchmarks, check out latest library from AllenAI for this.
