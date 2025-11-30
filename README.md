@@ -23,8 +23,7 @@ Key Goals
 - How much can we change after SFT during training?
 
 Milestones
-- Download dataset
-- Setup tokenizer
+- Implement Muon and AdamW optimizers, GPT config and a couple of other configs (Olmo3, Qwen3)
 - Train model.
 - Add parallelism from torchtitan
 
@@ -133,6 +132,15 @@ Distributed training: https://www.youtube.com/watch?v=9MvD-XsowsE&list=PLoROMvod
 - Transformer models have L layers, and operate on tensors with shape (B, seq_len, dim), we can split the model across each of these dimensions leading to DP, PP, CP and TP parallelisms.
 
 **CME295**
+
+Lecture 2: https://www.youtube.com/watch?v=yT84Y5zCnaA
+- Talks about different types of transformer models - Encoder:decoder, encoder only, decoder only.
+- Basic info on position embeddings, doesn't do as good of a job in explaining ROPE as I had hoped.
+- Usual pre or post Norm discussion.
+- Deep dive into encoder models like BERT. Does pretraining and finetuning.
+- Has ton of applications even though these models aren't improved as much as decoder models these days like classification, RAG pipelines.
+- ModernBERT from answer.ai is a useful alternative as it includes a lot of modern tricks used in decoder models: https://www.answer.ai/posts/2024-12-19-modernbert.html#training
+
 Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
 - Good discussion on RAG
 - RAG pipeline is a mix of retrieval and ranking similar to search and recommendation systems
