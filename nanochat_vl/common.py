@@ -1,7 +1,63 @@
+import logging
 import os
+import urllib
+import urllib.request
+from pathlib import Path
 
 import torch
 import torch.distributed as dist
+from filelock import FileLock
+
+
+class ColoredFormatter(logging.Formatter):
+    """Custom formatter that adds colors to log messages."""
+
+    # ANSI color codes
+    COLORS = {
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+    }
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    def format(self, record):
+        # Add color to the level name
+        levelname = record.levelname
+        if levelname in self.COLORS:
+            record.levelname = (
+                f"{self.COLORS[levelname]}{self.BOLD}{levelname}{self.RESET}"
+            )
+        # Format the message
+        message = super().format(record)
+        # Add color to specific parts of the message
+        if levelname == "INFO":
+            # Highlight numbers and percentages
+            message = re.sub(
+                r"(\d+\.?\d*\s*(?:GB|MB|%|docs))",
+                rf"{self.BOLD}\1{self.RESET}",
+                message,
+            )
+            message = re.sub(
+                r"(Shard \d+)",
+                rf'{self.COLORS["INFO"]}{self.BOLD}\1{self.RESET}',
+                message,
+            )
+        return message
+
+
+def setup_default_logging():
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        ColoredFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+    logging.basicConfig(level=logging.INFO, handlers=[handler])
+
+
+setup_default_logging()
+logger = logging.getLogger(__name__)
 
 
 def print0(s="", **kwargs):
@@ -18,6 +74,32 @@ def get_base_dir():
         nanochat_dir = os.path.join(home_dir, ".cache", "nanochat")
     os.makedirs(nanochat_dir, exist_ok=True)
     return nanochat_dir
+
+
+def download_file_with_lock(url, filename, postprocess_fn=None):
+    """
+    Ensures that file is downloaded once in distributed settings
+    """
+    base_dir = get_base_dir()
+    file_path = os.path.join(base_dir, filename)
+    lock_file = file_path + ".lock"
+    if os.path.exists(file_path):
+        return file_path
+
+    with FileLock(lock_path):
+        if os.path.exists(file_path):
+            return file_path
+
+        with urllib.request.urlopen(url) as resp:
+            content = resp.read()  # bytes
+
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        if postprocess_fn is not None:
+            postprocess_fn(file_path)
+
+    return file_path
 
 
 # DDP related utils
@@ -51,6 +133,35 @@ def autodetect_device_type():
 def compute_cleanup():
     if is_ddp():
         dist.destroy_process_group()
+
+
+def compute_init(device_type="cuda"):
+    assert device_type in ["cuda", "mps", "cpu"], "Invalid device_type"
+    if device_type == "cuda":
+        assert torch.cuda.is_available()
+    if device_type == "mps":
+        assert torch.backends.mps.is_available()
+
+    # Set global seeds for reproducibility.
+    torch.manual_seed(42)
+    if device_type == "cuda":
+        torch.cuda.manual_seed(42)
+
+    if device_type == "cuda":
+        torch.set_float32_matmul_precision("high")  # uses tf32 for matmuls
+
+    ddp, ddp_rank, ddp_local_rank, ddp_world_size = get_dist_info()
+    if ddp and device_type == "cuda":
+        device = torch.device("cuda", ddp_local_rank)
+        torch.cuda.set_device(device)
+        dist.init_process_group(backend="nccl", device_id=device)
+    else:
+        device = torch.device(device_type)
+
+    if ddp_rank == 0:
+        logger.info(f"Distributed world size: {ddp_world_size}")
+
+    return ddp, ddp_rank, ddp_local_rank, ddp_world_size, device
 
 
 class DummyWandb:
