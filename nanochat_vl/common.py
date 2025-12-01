@@ -51,3 +51,18 @@ def autodetect_device_type():
 def compute_cleanup():
     if is_ddp():
         dist.destroy_process_group()
+
+
+class DummyWandb:
+    """
+    Useful if we don't want to use wandb but have consistent logging code'
+    """
+
+    def __init__(self):
+        pass
+
+    def log(self, *args, **kwargs):
+        pass
+
+    def finish(self):
+        pass

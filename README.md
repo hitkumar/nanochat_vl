@@ -22,6 +22,15 @@ Key Goals
 - Explore knowledge distillation in LLMs
 - How much can we change after SFT during training?
 
+Optimizer Notes
+- AdamW: https://www.youtube.com/watch?v=1_nujVNUsto
+- Muon: https://www.youtube.com/watch?v=bO5nvE289ec&t=59s
+  - The overall idea is to approximately orthogolanize the momentum update matrix using Newton Schultz.
+  - SVD is the standard way of doing this exactly, but it is very slow.
+  - Muon is used for 2D params, for other params we still use AdamW
+  - QKclip and MuonClip are some other extensions used in practice to improve stability.
+
+
 Milestones
 - Implement Muon and AdamW optimizers, GPT config and a couple of other configs (Olmo3, Qwen3)
 - Train model.
