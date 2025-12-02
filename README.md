@@ -115,6 +115,13 @@ Ray: https://www.youtube.com/watch?v=B7U05Y4YcJg&list=PL_lsbAsL_o2BUUxo6coMBFwQE
 - Distributed compute engine.
 - Very commonly used in RL libraries for orchestration.
 
+Attention mechanisms: https://www.youtube.com/watch?v=Y-o545eYjXM
+- Talks about GQA, MQA and MHA as usual.
+- MLA from Deepseek is promising for optimizing the size of KV cache.
+- Idea of decoupled ROPE with MLA is interesting
+- Deepseek Sparse Attention is also discussed a bit.
+- These are interesting to explore especially the DSA, used in Deepseek-3.2. This would be good to explore next.
+
 ***PyTorch conference 2025***
 
 PyTorch native stack for agents: https://www.youtube.com/watch?v=oiAK4f3_o_0&list=PL_lsbAsL_o2BUUxo6coMBFwQE31U4Eb2q&index=38
