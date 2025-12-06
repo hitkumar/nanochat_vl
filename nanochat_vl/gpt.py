@@ -176,7 +176,7 @@ class GPT(nn.Module):
             torch.nn.init.zeros_(block.attn.c_proj.weight)
 
         # really initiliaze the pos embeddings
-        head_dim = config.n_embd // config.n_head
+        head_dim = self.config.n_embd // self.config.n_head
         cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, head_dim)
         # this is what updates the registers we defined in init
         self.cos, self.sin = cos, sin
@@ -214,6 +214,48 @@ class GPT(nn.Module):
         num_flops_per_token = 6 * (nparams - nparams_embedding) + 12 * l * h * q * t
         return num_flops_per_token
 
+    def get_num_parameters(self):
+        # number of parameters in millions
+        return sum(p.numel() for p in self.parameters())
+
+    def setup_optimizers(
+        self, unembedding_lr=0.004, embedding_lr=0.2, matrix_lr=0.02, weight_decay=0.0
+    ):
+        model_dim = self.config.n_embd
+        ddp, rank, local_rank, world_size = get_dist_info()
+        matrix_params = list(self.transformer.h.parameters())
+        embedding_params = list(self.transformer.wte.parameters())
+        lm_head_params = list(self.transformer.lm_head.parameters())
+        assert len(list(self.parameters())) == len(matrix_params) + len(
+            embedding_params
+        ) + len(lm_head_params)
+
+        # AdamW optimizer and embedding and lm_head
+        # scale base LR by ∝1/√dmodel (having tuned the LRs for 768 dim model)
+        dmodel_lr_scale = (768 / model_dim) ** 0.5
+        print0(f"scaling LRs by {dmodel_lr_scale} to account for model dim")
+        adam_groups = [
+            dict(params=embedding_params, lr=embedding_lr * dmodel_lr_scale),
+            dict(params=lm_head_params, lr=unembedding_lr * dmodel_lr_scale),
+        ]
+        adam_kwargs = dict(betas=(0.8, 0.95), eps=1e-10, weight_decay=weight_decay)
+        AdamWFactory = DistAdamW if ddp else partial(torch.optim.AdamW, fused=True)
+        adamw_optimizer = AdamWFactory(adam_groups, **adam_kwargs)
+
+        # Muon optimizer for matrix params
+        muon_kwargs = dict(
+            lr=matrix_lr,
+            momentum=0.95,
+        )
+        MuonFactory = DistMuon if ddp else Muon
+        muon_optimizer = MuonFactory(matrix_params, **muon_kwargs)
+        optimizers = [adamw_optimizer, muon_optimizer]
+        for opt in optimizers:
+            for group in opt.param_groups:
+                group["initial_lr"] = group["lr"]
+
+        return optimizers
+
     def forward(self, idx, targets=None, kv_cache=None, loss_reduction="mean"):
         B, T = idx.size()
         assert T <= self.cos.size(
@@ -226,7 +268,7 @@ class GPT(nn.Module):
         T0 = 0 if kv_cache is None else kv_cache.get_pos()
         cos_sin = self.cos[:, T0 : T0 + T], self.sin[:, T0 : T0 + T]
 
-        x = self.transformer.wte(x)
+        x = self.transformer.wte(idx)
         for block in self.transformer.h:
             x = block(x, cos_sin, kv_cache)
         x = norm(x)
@@ -246,10 +288,38 @@ class GPT(nn.Module):
                 ignore_index=-1,
                 reduction=loss_reduction,
             )
+            return loss
         else:
             logits = self.transformer.lm_head(x)
             logits = softcap * torch.tanh(logits / softcap)
             return logits
+
+    @torch.inference_mode()
+    def generate(self, tokens, max_tokens, temperature=1.0, top_k=None, seed=42):
+        assert isinstance(tokens, list)
+        device = self.get_device()
+        if temperature > 0:
+            rng = torch.Generator(device=device)
+            rng.manual_seed(seed)
+        ids = torch.tensor([tokens], dtype=torch.long, device=device)
+
+        for _ in range(max_tokens):
+            logits = self.forward(ids)  # (B, T, vocab_size)
+            logits = logits[:, -1, :]  # (B, vocab_size)
+            if tok_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[-1]] = -float("Inf")
+            if temperature > 0:
+                logits = logits / temperature
+                probs = F.softmax(logits, dim=-1)
+                next_ids = torch.multinomial(probs, num_samples=1, generator=rng)
+            else:
+                next_ids = torch.argmax(logits, dim=-1, keepdim=True)
+
+            ids = torch.cat((ids, next_ids), dim=1)  # (B, T+1)
+            token = next_ids.item()
+            # streaming generation.
+            yield token
 
 
 if __name__ == "__main__":
