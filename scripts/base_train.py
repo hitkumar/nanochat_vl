@@ -8,7 +8,9 @@ torchrun --nproc_per_node=8 base_train.py
 
 """
 
+import json
 import os
+import shutil
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import time
@@ -36,17 +38,17 @@ run = "dummy"  # wandb run name default ("dummy" is special - we won't log to wa
 device_type = ""  # cuda|cpu|mps (empty => autodetect good device type default, in order: CUDA > MPS > CPU)
 # Define model params here
 max_seq_len = 2048  # max context length
-depth = 20  # the depth of the Transformer model to train
+depth = 34  # the depth of the Transformer model to train
 
 # Training settings
-num_iterations = 100  # explicit number of steps of the optimization (-1 = disable)
+num_iterations = -1  # explicit number of steps of the optimization (-1 = disable)
 target_flops = (
     -1.0
 )  # calculate num_iterations to reach target_flops. Useful for scaling laws experiments (-1 = disable)
 target_param_data_ratio = 20  # calculate num_iterations to maintain fixed data:param ratio (Chinchilla=20) (-1 = disable)
 
 # Optimization params
-device_batch_size = 32  # per device batch size set to not OOM
+device_batch_size = 4  # per device batch size set to not OOM
 total_batch_size = 524288  # total desired batch size, in #tokens
 embedding_lr = 0.2  # learning rate for the embedding parameters (Adam)
 unembedding_lr = 0.004  # learning rate for the unembedding parameters (Adam)
@@ -60,9 +62,7 @@ resume_from_step = (
     -1
 )  # resume training from this step of the optimization (-1 = disable)
 # Output
-model_tag = (
-    ""  # optionally override the model tag for the output checkpoint directory name
-)
+model_tag = "d34_full"  # optionally override the model tag for the output checkpoint directory name
 
 # compute init
 device_type = autodetect_device_type() if device_type == "" else device_type
@@ -135,6 +135,10 @@ print0(f"Model head_dim is {model.head_dim}")
 base_dir = get_base_dir()
 output_dirname = model_tag if model_tag else f"d_{depth}"
 checkpoint_dir = os.path.join(base_dir, "base_checkpoints", output_dirname)
+# Delete checkpoint directory if it exists, might change later once we add resuming logic.
+if os.path.exists(checkpoint_dir) and ddp_rank == 0:
+    print0(f"Deleting existing checkpoint directory: {checkpoint_dir}")
+    shutil.rmtree(checkpoint_dir)
 # TODO: Add resuming logic
 
 orig_model = model  # original, uncompiled model for saving raw model state_dict and inference/evaluation
@@ -187,8 +191,8 @@ print0(f"x shape is {x.shape}, target shape is {y.shape}")
 eval_every = 20
 eval_tokens = 20 * total_batch_size
 save_every = (
-    -1
-)  # freq of saving model ckpts, -1 means only save at the end of training.
+    5000  # freq of saving model ckpts, -1 means only save at the end of training.
+)
 
 
 # Set up hyperparameter schedulers
@@ -218,6 +222,8 @@ step = 0
 min_val_bpb = float("inf")
 smooth_train_loss = 0  # EMA of the training loss
 total_training_time = 0  # wall clock time spent in training
+log_file_directory = os.path.join(base_dir, "logs", output_dirname)
+os.makedirs(log_file_directory, exist_ok=True)
 
 
 # training loop
@@ -240,7 +246,7 @@ while True:
 
     # TODO: Eval other metrics periodically as well and sample from the model.
 
-    if last_step or (save_every > 0 and step % save_every == 0):
+    if last_step or (step > 0 and save_every > 0 and step % save_every == 0):
         save_checkpoint(
             checkpoint_dir,
             step,
@@ -293,11 +299,56 @@ while True:
     synchronize()
     t1 = time.time()
     dt = t1 - t0
-    if step % 100 == 0:
-        print0(f"Training duration for step {step} is {dt:.4f} sec")
 
-    # TODO: Add some logging.
+    # logging
+    ema_beta = 0.9
+    smooth_train_loss = (
+        ema_beta * smooth_train_loss + (1 - ema_beta) * train_loss.item()
+    )
+    # This is needed because smooth_train_loss is 0 at the beginning which biases the loss estimate.
+    # After 100 or so iterations, smooth_train_loss and debiased_smooth_loss converge.
+    debiased_smooth_loss = smooth_train_loss / (1 - ema_beta ** (step + 1))
+    pct_done = 100 * step / num_iterations
+    tok_per_sec = int(total_batch_size / dt)
+    flops_per_sec = (total_batch_size * num_flops_per_token) / dt
+    promised_flops_per_sec_a100 = (
+        312e12 * ddp_world_size
+    )  # # bfloat16 H100 SXM and without 2:4 sparsity
+    mfu = 100 * flops_per_sec / promised_flops_per_sec_a100  # in %age
+    if step > 10:
+        total_training_time += dt
+        print0(
+            f"step {step:05d}/{num_iterations:05d} ({pct_done:.2f}%) | "
+            f"loss: {debiased_smooth_loss:.6f} |{grad_norm:.4f} "
+            f"lrm: {lrm:.2f} | dt: {dt * 1000:.2f}ms | "
+            f"tok/sec: {tok_per_sec:,} | mfu: {mfu:.2f} | "
+            f"total time: {total_training_time/60:.2f}m"
+        )
+    if step % 100 == 0:
+        log_data = {
+            "step": step,
+            "total_training_flops": flops_so_far,
+            "total_training_time": total_training_time,
+            "train/loss": debiased_smooth_loss,
+            "train/lrm": lrm,
+            "train/dt": dt,
+            "train/tok_per_sec": tok_per_sec,
+            "train/mfu": mfu,
+            "train/clip_norm": grad_norm,
+        }
+        if ddp_rank == 0:  # Only master process writes
+            training_logs = os.path.join(log_file_directory, "training_log.jsonl")
+            with open(training_logs, "a") as f:
+                f.write(json.dumps(log_data) + "\n")
+
     step += 1
+
+# print some more stats after training ends
+print0(f"Peak memory usage: {get_max_memory() / 1024 / 1024:.2f}MiB")
+print0(f"Total training time: {total_training_time/60:.2f}m")
+print0(f"Minimum validation bpb: {min_val_bpb:.4f}")
+
+# TODO: Add reporting functionality.
 
 # cleanup
 wandb_run.finish()
