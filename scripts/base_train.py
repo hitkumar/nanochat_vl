@@ -15,6 +15,7 @@ import time
 from contextlib import nullcontext
 
 import torch
+from nanochat_vl.checkpoint_manager import load_checkpoint, save_checkpoint
 from nanochat_vl.common import (
     autodetect_device_type,
     compute_cleanup,
@@ -25,6 +26,7 @@ from nanochat_vl.common import (
 )
 from nanochat_vl.dataloader import tokenizing_distributed_data_loader
 from nanochat_vl.gpt import GPT, GPTConfig
+from nanochat_vl.loss_eval import evaluate_bpb
 from nanochat_vl.tokenizer import get_token_bytes, get_tokenizer
 
 # -----------------------------------------------------------------------------
@@ -37,7 +39,7 @@ max_seq_len = 2048  # max context length
 depth = 20  # the depth of the Transformer model to train
 
 # Training settings
-num_iterations = -1  # explicit number of steps of the optimization (-1 = disable)
+num_iterations = 100  # explicit number of steps of the optimization (-1 = disable)
 target_flops = (
     -1.0
 )  # calculate num_iterations to reach target_flops. Useful for scaling laws experiments (-1 = disable)
@@ -175,38 +177,127 @@ adamw_optimizer, muon_optimizer = optimizers
 train_loader = tokenizing_distributed_data_loader(
     device_batch_size, max_seq_len, split="train", device=device
 )
-validation_loader = tokenizing_distributed_data_loader(
+build_val_loader = lambda: tokenizing_distributed_data_loader(
     device_batch_size, max_seq_len, split="val", device=device
 )
 x, y = next(train_loader)
 print0(f"x shape is {x.shape}, target shape is {y.shape}")
 
+# Evaluation params
+eval_every = 20
+eval_tokens = 20 * total_batch_size
+save_every = (
+    -1
+)  # freq of saving model ckpts, -1 means only save at the end of training.
+
+
+# Set up hyperparameter schedulers
+# LR scheduler
+def get_lr_multiplier(it):
+    warmup_iters = round(warmup_ratio * num_iterations)
+    warmdown_iters = round(warmdown_ratio * num_iterations)
+    if it < warmup_iters:
+        return (it + 1) / warmup_iters
+    elif it < num_iterations - warmdown_iters:
+        return 1.0
+    else:
+        # progress goes down linearly from 1.0 to 0.0 as iterations progress.
+        progress = (num_iterations - it) / warmdown_iters
+        return progress * 1.0 + (1 - progress) * final_lr_frac
+
+
+# Momentum scheduler for Muon optimizer
+def get_muon_momentum(it):
+    frac = min(it / 300, 1.0)
+    # increases momentum from 0.85 to 0.95
+    return (1 - frac) * 0.85 + frac * 0.95
+
+
 # Track training progress
 step = 0
+min_val_bpb = float("inf")
+smooth_train_loss = 0  # EMA of the training loss
+total_training_time = 0  # wall clock time spent in training
+
 
 # training loop
 while True:
+    last_step = step == num_iterations
+    flops_so_far = step * num_flops_per_token * total_batch_size
+
+    # Calculate val bpb every few steps (all ranks participate)
+    if last_step or step % eval_every == 0:
+        model.eval()
+        val_loader = build_val_loader()
+        eval_steps = eval_tokens // (ddp_world_size * max_seq_len * device_batch_size)
+        with autocast_ctx:
+            val_bpb = evaluate_bpb(model, val_loader, eval_steps, token_bytes)
+        print0(f"Step: {step: 05d}, Val BPB: {val_bpb:.4f}")
+        if val_bpb < min_val_bpb:
+            min_val_bpb = val_bpb
+
+        model.train()
+
+    # TODO: Eval other metrics periodically as well and sample from the model.
+
+    if last_step or (save_every > 0 and step % save_every == 0):
+        save_checkpoint(
+            checkpoint_dir,
+            step,
+            orig_model.state_dict(),
+            [opt.state_dict() for opt in optimizers],
+            # metadata saved as json
+            {
+                "step": step,
+                "val_bpb": val_bpb,
+                "model_config": model_config_kwargs,
+            },
+            rank=ddp_rank,
+        )
+    if last_step:
+        break
+
     synchronize()
     t0 = time.time()
     for micro_step in range(grad_accum_steps):
         with autocast_ctx:
             loss = model(x, y)
-        train_loss = loss.detach()
-        print0(f"Train loss: {train_loss.item()}")
+        train_loss = loss.detach()  # for logging
+        # print0(f"Train loss: {train_loss.item()}")
         loss = (
             loss / grad_accum_steps
         )  # loss computed is avg of values in the micro_batch, we divide by grad_accum steps to get the true average in the whole batch
         loss.backward()  # sum the loss value
         x, y = next(train_loader)
 
+    # gradient clipping
+    grad_clip_enabled = grad_clip > 0.0
+    if grad_clip_enabled:
+        grad_norm_tensor = torch.nn.utils.clip_grad_norm_(
+            orig_model.parameters(), grad_clip
+        )
+        grad_norm = grad_norm_tensor.item()
+
+    lrm = get_lr_multiplier(step)
+    for opt in optimizers:
+        for group in opt.param_groups:
+            group["lr"] = group["initial_lr"] * lrm
+
+    muon_momentum = get_muon_momentum(step)
+    for group in muon_optimizer.param_groups:
+        group["momentum"] = muon_momentum
+
     for opt in optimizers:
         opt.step()
     model.zero_grad(set_to_none=True)
     synchronize()
     t1 = time.time()
+    dt = t1 - t0
+    if step % 100 == 0:
+        print0(f"Training duration for step {step} is {dt:.4f} sec")
+
+    # TODO: Add some logging.
     step += 1
-    if step == 3:
-        break
 
 # cleanup
 wandb_run.finish()

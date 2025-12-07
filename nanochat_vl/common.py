@@ -62,9 +62,13 @@ logger = logging.getLogger(__name__)
 
 
 def print0(s="", **kwargs):
-    ddp_rank = int(os.environ.get("RANK", 0))
-    if ddp_rank == 0:
+    if int(os.environ.get("RANK", 0)) == 0:
         print(s, **kwargs)
+
+
+def log0(message):
+    if int(os.environ.get("RANK", 0)) == 0:
+        logger.info(message)
 
 
 def get_base_dir():
