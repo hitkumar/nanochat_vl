@@ -157,6 +157,22 @@ Lecture 2: https://www.youtube.com/watch?v=yT84Y5zCnaA
 - Has ton of applications even though these models aren't improved as much as decoder models these days like classification, RAG pipelines.
 - ModernBERT from answer.ai is a useful alternative as it includes a lot of modern tricks used in decoder models: https://www.answer.ai/posts/2024-12-19-modernbert.html#training
 
+Lecture 3: https://www.youtube.com/watch?v=Q5baLehv5So
+- MoE in transformer models.
+- Training MoE is hard, routing collapse is one such issue where most of the tokens get routed to small number of experts while other experts get nothing leading to misuse of model capacity.
+- Adding aux loss is one way to make training more stable.
+- Next token prediction is typically done by sampling the next token from p(w_t+1/C). Top k and Top p are some refinements to this.
+- Temperature allows you to tweak output probabilities by adjusting the logits.
+- Low T (< 1) makes the model more certain of its prediction -> higher logits tokens get more probability mass so model outputs more likely to be the top-ranked tokens. It is good for factual tasks, QA, coding, math where we want less hallucinations.
+- High T (> 1) makes the model responses more variable as probabilities become smoother. This leads to more creative and diverse responses.
+- T=0 is not usable as is (due to dvision by 0), but it implies greedy decoding in practice.
+- In context learning - zero shot or few shot.
+- CoT improves model performance.
+- Inference optimizations: KC caching, GQA, PagedAttention (vlLM does this), MLA (deepseek)
+- Speculative decoding and multi token prediction are other techniques that help.
+- Not as good a lecture as some other ones.
+
+
 Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
 - Good discussion on RAG
 - RAG pipeline is a mix of retrieval and ranking similar to search and recommendation systems
