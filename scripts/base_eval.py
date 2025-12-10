@@ -1,5 +1,14 @@
 """
 Evaluate the CORE metric for a given model
+
+Test commands
+HF models
+
+torchrun --standalone --nproc_per_node=8 -m scripts.base_eval --hf-path openai-community/gpt2-medium
+
+nanochat models
+
+torchrun --standalone --nproc_per_node=8 -m scripts.base_eval --model-tag d34_full
 """
 
 import argparse
@@ -67,10 +76,12 @@ def main():
         "--hf-path", type=str, default=None, help="HuggingFace model path to evaluate"
     )
     parser.add_argument(
-        "--model_tag", type=str, default="base", help="Nanochat Model tag to evaluate"
+        "--model-tag", type=str, default=None, help="Nanochat Model tag to evaluate"
     )
     args = parser.parse_args()
-    assert args.hf_path is not None or args.model_tag is not None
+    assert (
+        args.hf_path is not None or args.model_tag is not None
+    ), "Either hf-path or model_tag must be specified"
 
     # distributed training setup
     device_type = autodetect_device_type()
@@ -88,10 +99,12 @@ def main():
         print0(f"model logit shape is {logits.shape}")
         model_name = hf_path
     else:
-        model, tokenizer, meta_data = load_model("base", device, "eval", "d34_full")
+        model, tokenizer, meta_data = load_model("base", device, "eval", args.model_tag)
         raw_inputs = torch.ones(2, 2, dtype=torch.long, device=device)
         logits = model(raw_inputs)
         print0(f"model logit shape is {logits.shape}")
+
+    compute_cleanup()
 
 
 if __name__ == "__main__":
