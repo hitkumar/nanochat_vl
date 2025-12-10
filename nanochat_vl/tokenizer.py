@@ -100,6 +100,65 @@ class RustBPETokenizer:
         return self.enc.decode(ids)
 
 
+# Generic GPT-4 Style Tokenizer which can be used to load huggingface models.
+# This is used to evaluate arbitrary HF models for comparison.
+from tokenizers import Tokenizer as HFTokenizer
+
+
+class HuggingFaceTokenizer:
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
+
+    @classmethod
+    def from_pretrained(cls, hf_path):
+        tokenizer = HFTokenizer.from_pretrained(hf_path)
+        return cls(tokenizer)
+
+    def get_vocab_size(self):
+        return self.tokenizer.get_vocab_size()
+
+    def id_to_token(self, id):
+        return self.tokenizer.id_to_token(id)
+
+    def encode_special(self, text):
+        return self.tokenizer.token_to_id(text)
+
+    def _encode_one(self, text, prepend=None, append=None):
+        # encode a single string
+        # prepend/append can be either a string of a special token or a token id directly.
+        assert isinstance(text, str)
+        ids = []
+        if prepend is not None:
+            prepend_id = (
+                prepend if isinstance(prepend, int) else self.encode_special(prepend)
+            )
+            ids.append(prepend_id)
+        ids.extend(self.tokenizer.encode(text, add_special_tokens=False).ids)
+        if append is not None:
+            append_id = (
+                append if isinstance(append, int) else self.encode_special(append)
+            )
+            ids.append(append_id)
+        return ids
+
+    def get_bos_token_id(self):
+        return self.encode_special("<|bos|>")
+
+    def encode(self, text, *args, **kwargs):
+        if isinstance(text, str):
+            return self._encode_one(text, *args, **kwargs)
+        elif isinstance(text, list):
+            return [self._encode_one(t, *args, **kwargs) for t in text]
+        else:
+            raise ValueError(f"Invalid input type: {type(text)}")
+
+    def __call__(self, *args, **kwargs):
+        return self.encode(*args, **kwargs)
+
+    def decode(self, ids):
+        return self.tokenizer.decode(ids, skip_special_tokens=False)
+
+
 def get_tokenizer():
     from nanochat_vl.common import get_base_dir
 

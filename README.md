@@ -32,8 +32,10 @@ Optimizer Notes
 
 
 Milestones
-- Implement Muon and AdamW optimizers, GPT config and a couple of other configs (Olmo3, Qwen3)
+- Implement couple of other configs (Olmo3, Qwen3)
 - Train model.
+- Get pretraining eval suite to work.
+- Implement engine for inference.
 - Add parallelism from torchtitan
 
 Olmo-core is not a good option to explore since it assumes that dataloader is not specific to HF. Try PrimeIntellect Prime-RL and verifiers instead, along with torchtitan
