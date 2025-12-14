@@ -142,6 +142,44 @@ Multimodal pytorch training and inference: https://www.youtube.com/watch?v=LmpXU
 - Talks about using a lot of interesting pytorch ideas, rely on Torchtitan like library for easily applying parallelism for models.
 - FSDP2 is the main technique, lets get very good with FSDP 2 and TP first.
 
+***Some RL Talks***
+Building Olmo3 Think
+https://docs.google.com/presentation/d/1KPI5q2esx7JV7ztNvSA57F17vzwCRBe92EWz51H_1gQ/edit?slide=id.g368e9cb47c9_1_2510#slide=id.g368e9cb47c9_1_2510
+
+- 7B and 32B dense models.
+- Model architecture matters when doing RL. One example is GQA which leads to 8x memory reduction is quite important in optimizing generations during RL runs due to KV cache size limitations.
+- Interesting approach to finding the ideal data weights during pretraining and midtraining. Train multiple small models to predict the ideal rations depending on performance on benchmarks.
+- Thinking SFT
+  - Use prompts from various sources and uses strong teacher models + filtering to create the SFT dataset.
+- Thinking DPO: Key idea is to learn from deltas. They chose Qwen 3 32B and Qwen 3 0.6B to generate the DPO preference dataset and used that after SFT to train. Gains from DPO stack on top of RL and are much cheaper to attain
+- Standard RLVR pipeline
+ - Use a modified version of GRPO taking recent advancements into account.
+ - Sync training is inefficient.
+ - Async training is becoming standard. We update the generator weights as soon as one step of training is done (In-flight weight updates), so for a given rollout some tokens could be from a stale policy. This is ok in practice.
+ - RL training is more stable if training batch size is same across steps - this can be different as some prompts are filtered by design (like the ones where all completions have 0 reward). Active sampling is used to achieve this where an active buffer is maintained and more completions are generated until the batch is full.
+- Reasoning evals are hard.
+- Can't use simple evals like MMLU which are multiple choice questions.
+- Move all evals to CoT format to encourage the model to think before giving final answer to match how they were during training.
+- Using average score to judge model performance is misleading. User should pick the model based on their unique needs.
+- Time taken for evals is significant.
+
+Agent RFT from OpenAI: https://www.youtube.com/watch?v=p1CmPZ2j6Lk
+- We can use prompt optimization and task optimization to see if base models can fit our needs.
+- If we need better performance from the models, we can turn to Agent RFT.
+- Key idea is to come up with a good train/eval datasets and reward function. Dataset should be representative of what we want to achieve in prod.
+- Reward function should avoid reward hacking.
+- With agent RFT, we see that the model learns to specifically predict the tools our use case cares about better. We see parallel tool calls and decreased number of turns needed to come up with a final answer compared to using the base model only.
+- Some interesting case studies presented where we see significant model performance improvement with this.
+
+RL environments from Prime Intellect: https://www.youtube.com/watch?v=_IzZWeuTx7I&t=933s
+- High level talk about using prime-rl and verifiers to build RL environments
+- Play with both these repos.
+
+Efficient RL: https://www.youtube.com/watch?v=o15AaYl7Wu0
+- Talks about importance of async RL
+- Efficiency in RL is really important if you are trying to solve real world problems with RL
+- Present an optimization problem showing how to best allocate resources between trainer and generators in RL.
+
 ***CS231n**
 Distributed training: https://www.youtube.com/watch?v=9MvD-XsowsE&list=PLoROMvodv4rOmsNzYBMe0gJY2XS8AQg16&index=11
 - Great lecture, watch multiple times.
