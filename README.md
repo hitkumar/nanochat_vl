@@ -34,9 +34,12 @@ Optimizer Notes
 Milestones
 - Implement couple of other configs (Olmo3, Qwen3)
 - Train model.
-- Get pretraining eval suite to work.
 - Implement engine for inference.
 - Add parallelism from torchtitan
+
+Eval Results after pretraining
+- d34_full CORE metric is 31.58
+- gpt-2 xl is 24.35
 
 Olmo-core is not a good option to explore since it assumes that dataloader is not specific to HF. Try PrimeIntellect Prime-RL and verifiers instead, along with torchtitan
 

@@ -34,6 +34,7 @@ from nanochat_vl.common import (
     get_base_dir,
     print0,
 )
+from nanochat_vl.core_eval import evaluate_task
 from nanochat_vl.tokenizer import HuggingFaceTokenizer
 
 # ~162MB of data needed to evaluate the CORE metric
@@ -85,14 +86,16 @@ def evaluate_model(model, tokenizer, device, max_per_task=-1):
     for task in tasks:
         start_time = time.time()
         label = task["label"]
+        continuation_delimiter = task.get("continuation_delimiter", " ")
         task_meta = {
             "task_type": task["icl_task_type"],
             "dataset_uri": task["dataset_uri"],
             "num_fewshot": task["num_fewshot"][0],
-            "continuation_delimiter": task.get("continuation_delimiter", " "),
+            "continuation_delimiter": continuation_delimiter,
         }
+
         print0(
-            f"Evaluating: {label} ({task_meta['num_fewshot']}-shot, type: {task_meta['task_type']})... ",
+            f"Evaluating: {label} ({task_meta['num_fewshot']}-shot, continuation_delimiter: {continuation_delimiter}, type: {task_meta['task_type']})... ",
             end="",
         )
 
@@ -107,8 +110,7 @@ def evaluate_model(model, tokenizer, device, max_per_task=-1):
         if max_per_task > 0:
             data = data[:max_per_task]
 
-        # run the eval task on this data TODO implement the func
-        accuracy = 0.50
+        accuracy = evaluate_task(model, tokenizer, data, device, task_meta)
         results[label] = accuracy
         random_baseline = random_baselines[label]
         # random baseline in the eval set is a %age, so we need * with 0.01 here
@@ -202,10 +204,11 @@ def main():
     else:
         model, tokenizer, meta_data = load_model("base", device, "eval", args.model_tag)
         raw_inputs = torch.ones(2, 2, dtype=torch.long, device=device)
-        logits = model(raw_inputs)
+        with autocast_ctx:
+            logits = model(raw_inputs)
         print0(f"model logit shape is {logits.shape}")
-        model_name = f"base_model_{model_tag} (step {meta_data['step']:06d})"
-        model_slug = f"base_model_{model_tag}_{meta_data['step']:06d}"
+        model_name = f"base_model_{args.model_tag} (step {meta_data['step']:06d})"
+        model_slug = f"base_model_{args.model_tag}_{meta_data['step']:06d}"
 
     with autocast_ctx:
         out = evaluate_model(model, tokenizer, device, args.max_per_task)

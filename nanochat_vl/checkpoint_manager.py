@@ -39,6 +39,7 @@ def save_checkpoint(
 def load_checkpoint(checkpoint_dir, step, device, load_optimizer=False, rank=0):
     model_path = os.path.join(checkpoint_dir, f"model_{step:06d}.pt")
     model_data = torch.load(model_path, map_location=device)
+    optimizer_data = None
     if load_optimizer:
         optimizer_path = os.path.join(
             checkpoint_dir, f"optimizer_{step:06d}_{rank:d}.pt"

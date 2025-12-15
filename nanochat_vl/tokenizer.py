@@ -94,7 +94,7 @@ class RustBPETokenizer:
         return ids
 
     def __call__(self, *args, **kwargs):
-        self.encode(*args, **kwargs)
+        return self.encode(*args, **kwargs)
 
     def decode(self, ids):
         return self.enc.decode(ids)
@@ -142,7 +142,13 @@ class HuggingFaceTokenizer:
         return ids
 
     def get_bos_token_id(self):
-        return self.encode_special("<|bos|>")
+        # Try common BOS token names used by different models
+        # GPT-2 uses "<|endoftext|>" as BOS token
+        for token in ["<|bos|>", "<|endoftext|>", "<s>", "<|begin_of_text|>"]:
+            token_id = self.encode_special(token)
+            if token_id is not None:
+                return token_id
+        return None
 
     def encode(self, text, *args, **kwargs):
         if isinstance(text, str):
