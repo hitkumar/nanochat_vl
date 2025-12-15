@@ -4,7 +4,7 @@ Evaluate the CORE metric for a given model
 Test commands
 HF models
 
-torchrun --standalone --nproc_per_node=8 -m scripts.base_eval --hf-path openai-community/gpt2-medium
+torchrun --standalone --nproc_per_node=8 -m scripts.base_eval --hf-path openai-community/gpt2-xl
 
 nanochat models
 

@@ -63,9 +63,15 @@ def test_render_prompts_schema():
     )
 
     assert len(prompts) == 2
-    assert "He went left so he" in prompts[0]  # fewshot gold=0
-    assert "She chose A so she" in prompts[0]
-    assert "She chose B so she" in prompts[1]
+    # Fewshot uses gold=0, so "He went left so he"
+    assert (
+        prompts[0]
+        == "He went left so he found the exit.\nShe chose A so she won the prize."
+    )
+    assert (
+        prompts[1]
+        == "He went left so he found the exit.\nShe chose B so she won the prize."
+    )
 
 
 def test_render_prompts_schema_zero_shot():
@@ -78,9 +84,8 @@ def test_render_prompts_schema_zero_shot():
     prompts = render_prompts_schema(item, continuation_delimiter=" ")
 
     assert len(prompts) == 2
-    assert "The cat sat on the" in prompts[0]
-    assert "mat." in prompts[0]
-    assert "The dog ran to the" in prompts[1]
+    assert prompts[0] == "The cat sat on the mat."
+    assert prompts[1] == "The dog ran to the mat."
 
 
 def test_render_prompts_lm():
@@ -103,9 +108,8 @@ def test_render_prompts_lm_with_fewshot():
     )
 
     prompt_without, prompt_with = prompts
-    assert "1 + 1 =" in prompt_without
-    assert "2 + 2 =" in prompt_without
-    assert prompt_with.endswith(" 4")
+    assert prompt_without == "1 + 1 = 2\n2 + 2 ="
+    assert prompt_with == "1 + 1 = 2\n2 + 2 = 4"
 
 
 def test_find_common_length():

@@ -38,8 +38,11 @@ Milestones
 - Add parallelism from torchtitan
 
 Eval Results after pretraining
-- d34_full CORE metric is 31.58
-- gpt-2 xl is 24.35
+- d34_full CORE metric is 31.78
+- gpt-2 xl is 25.09
+
+***Installing new dependencies***
+Since this repo uses uv, we should use uv pip install <dep_name> to install new stuff here.
 
 Olmo-core is not a good option to explore since it assumes that dataloader is not specific to HF. Try PrimeIntellect Prime-RL and verifiers instead, along with torchtitan
 

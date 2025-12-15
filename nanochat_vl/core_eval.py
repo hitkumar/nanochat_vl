@@ -41,12 +41,10 @@ def render_prompts_schema(item, continuation_delimiter, fewshot_examples=None):
     {"context_options": ["Sarah was a much better surgeon than Maria so Sarah", "Sarah was a much better surgeon than Maria so Maria"],
      "continuation": "always got the easier cases.", "gold": 1}
     """
-    template_str = """
-    {%- for example in fewshot_examples -%}
-    {{ example.context_options[example.gold]}} {{ continuation_delimiter }} {{ example.continuation }}
-
-    {% endfor -%}
-    {{ context }} {{ continuation_delimiter }} {{ item.continuation }}""".strip()
+    template_str = """{%- for example in fewshot_examples -%}
+{{ example.context_options[example.gold] }}{{ continuation_delimiter }}{{ example.continuation }}
+{% endfor -%}
+{{ context }}{{ continuation_delimiter }}{{ item.continuation }}"""
     template = Template(template_str)
     fewshot_examples = fewshot_examples or []
     context = {
@@ -68,12 +66,10 @@ def render_prompts_lm(item, continuation_delimiter, fewshot_examples=None):
     Example is
     {"context": "Given two strings, determine the length of the longest common subsequence.\n\nStrings: RHULBSLGMH EPRVXZZITZ\nLength of longest common subsequence:", "continuation": "1"}
     """
-    template_str = """
-    {%- for example in fewshot_examples -%}
-    {{ example.context | trim }}{{ continuation_delimiter }}{{ example.continuation }}
-
-    {% endfor -%}
-    {{ item.context | trim }}{{ continuation_delimiter }}{% if include_continuation %}{{ item.continuation }}{% endif %}"""
+    template_str = """{%- for example in fewshot_examples -%}
+{{ example.context | trim }}{{ continuation_delimiter }}{{ example.continuation }}
+{% endfor -%}
+{{ item.context | trim }}{{ continuation_delimiter }}{% if include_continuation %}{{ item.continuation }}{% endif %}"""
 
     template = Template(template_str)
     fewshot_examples = fewshot_examples or []
