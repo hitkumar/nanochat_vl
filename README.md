@@ -218,6 +218,17 @@ Lecture 3: https://www.youtube.com/watch?v=Q5baLehv5So
 - Speculative decoding and multi token prediction are other techniques that help.
 - Not as good a lecture as some other ones.
 
+Lecture 4: https://cme295.stanford.edu/slides/fall25-cme295-lecture4.pdf
+- LLM Training
+- Pretraining helps the model learn general patterns of language and code.
+- Done on large datasets
+- Chinchilla scaling law which states that optimal number of tokens to use for training are 20x the number of model parameters.
+- Flash attention the main idea is to fuse operations to get speedups. It utilizes the memory architecture of a GPU to gain efficiency.
+- Mixed precision - keep model weights in fp32, but do all the operations in bf16 to speed things up.
+- SFT: one key thing is although training objective is same as pretraining, we think of model generating output given the input. In other words, loss is not calculated on the input tokens.
+- LoRA is a useful thing during SFT. Mostly applied to FF layers.
+
+
 
 Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
 - Good discussion on RAG
