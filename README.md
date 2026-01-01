@@ -228,6 +228,20 @@ Lecture 4: https://cme295.stanford.edu/slides/fall25-cme295-lecture4.pdf
 - SFT: one key thing is although training objective is same as pretraining, we think of model generating output given the input. In other words, loss is not calculated on the input tokens.
 - LoRA is a useful thing during SFT. Mostly applied to FF layers.
 
+Lecture 5: https://cme295.stanford.edu/slides/fall25-cme295-lecture5.pdf
+- Preference Tuning
+- Data format is pairwise data (x, y(w), y(l)). We can generate multiple responses from the SFT model and then label them to generate preference data. This labeling can be done by humans or LLM as a judge base methods.
+- RLHF step 1 is to learn a reward model from preference data.
+- Bradley terry formulation. Reward model is trained from preference data, but during inference, it is used to generate the reward score for a (prompt + completion).
+- Step 2 is to use RL to tune the model weights to learn human preferences typically using PPO style algorithms.
+- During this step, we teach the model to maximize rewards while not deviating too much from the base model max (E(rewards) - KL_div(policy || base))
+- PPO uses value functions to compute baseline which is used to compute advantages. This advantage is maximized which reduces variance and stabilizes training.
+- PPO is expensive as we need 4 models to implement it (base model, policy model, value function and reward model) and getting it to work reliably is hard.
+- Best of N is another approach where we skip preference tuning and just use the reward model to find the best completion among N completions we generate. It has obvious latency and cost challenges
+- DPO rewrites the RLHF formulation in a supervised way. Much simpler than PPO as we only need a policy model and base model.
+- Generally, PPO performs slightly better than DPO if implemented correctly, but for most use-cases DPO is good enough.
+- DPO is generally followed by RLVR based on GRPO to make the model learn on harder tasks.
+
 
 
 Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
