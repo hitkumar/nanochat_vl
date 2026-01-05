@@ -242,6 +242,18 @@ Lecture 5: https://cme295.stanford.edu/slides/fall25-cme295-lecture5.pdf
 - Generally, PPO performs slightly better than DPO if implemented correctly, but for most use-cases DPO is good enough.
 - DPO is generally followed by RLVR based on GRPO to make the model learn on harder tasks.
 
+Lecture 6: https://cme295.stanford.edu/slides/fall25-cme295-lecture6.pdf
+- Reasoning LLMs
+- Reasoning is the ability to break down a probabilities into smaller subproblems and solve them.
+- We improve reasoning in LLMs by asking the model to generate a CoT before giving the final answer.
+- We have common benchmarks for reasoning models like Swe-bench for coding, AIME for math.
+- We also have pass@k: which measures the probability that at least one of the k completions is correct.
+- We scale RL by running it on verifiable rewards - typically a combination of formatting based (make sure <think> tokens are included) and correctness based rewards.
+- GRPO is a common way to do RLVR.
+- Compared to PPO, it uses the rollouts for a given example to compute advantages and doesn't use a value function.
+- We typically see that response length keeps increasing as RL training progresses. One of the reasons is wrong bad outputs are penalized less if they are longer due to length normalization.
+- Dr.GRPO removes length normalization which helps fix this. A few other variants are popular these ideas like not using std deviation to compute advantage score and only use mean.
+- Deepseek introduced this and R1 paper is a good case study.
 
 
 Agentic LLMs: https://www.youtube.com/watch?v=h-7S6HNq0Vg&t=5s
